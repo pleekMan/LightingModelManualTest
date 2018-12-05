@@ -1,16 +1,17 @@
 import peasy.PeasyCam;
 
 PeasyCam cam;
+Tools tools;
 
 float[][] v = {
-  {0, 0, 0}, {100, 0, 0}, {0, 100, 0}, {100, 100, 0}
+  {0, 0, -50}, {100, 0, 0}, {0, 100, 0}, {100, 100, 0}
 };
 
 int[][] faces = {
-  {0, 1, 2}, {1, 2, 3}
+  {0, 2, 1}, {1, 2, 3}
 };
 
-color[] faceColors = {color(0,255,0), color(0)};
+color[] faceColors = {color(0, 255, 0), color(0, 255, 0)};
 
 color objectDiffuseColor = color(0, 255, 0);
 
@@ -23,24 +24,27 @@ void setup() {
   fill(255, 0, 0);
 
   cam = new PeasyCam(this, 400);
+  tools = new Tools();
 }
 
 void draw() {
   background(0);
   stroke(255, 100, 0);
 
-  lightPos.x = map(mouseX, 0, width, -200,200);
-  
-  PVector n = getFaceNormal(0);
-  float l = normalToLightIncidence(0, n);
-  
-  color faceDiffuse = shadeDiffuse(faceColors[0],l);
+  lightPos.x = map(mouseX, 0, width, -200, 200);
+
+  tools.drawAxisGizmo();
 
   // FACES
+  float[] tempL = new float[2];
   for (int i=0; i < faces.length; i++) {
 
-    //PVector n = getFaceNormal(i);
-    //float theta =  normalToLightAngle();
+    PVector n = getFaceNormal(i);
+    float l = normalToLightIncidence(i, n);
+    tempL[i] = l; 
+
+
+    color faceDiffuse = shadeDiffuse(faceColors[i], l);
 
     beginShape();
     fill(faceDiffuse);
@@ -61,13 +65,15 @@ void draw() {
   translate(lightPos.x, lightPos.y, lightPos.z);
   sphere(10);
   popMatrix();
-  
+
   //-------------
   cam.beginHUD();
-  fill(0,255,127);
-  text("FACE 0 NORMAL: \t\t" + n, 10,20);
-  text("LIGHT POS: \t\t" + lightPos, 10,40);
-  text("FACE 0 LIGHT INCIDENCE: \t\t" + l, 10,60);
+  fill(0, 255, 127);
+  //text("FACE 0 NORMAL: \t\t" + n, 10, 20);
+  text("LIGHT POS: \t\t" + lightPos, 10, 20);
+  text("LIGHT INCIDENCE ON FACE 0: " + tempL[0], 10, 40);
+  text("LIGHT INCIDENCE ON FACE 1: " + tempL[1], 10, 60);
+  //text("FACE LIGHT INCIDENCE: \t\t" + l, 10, 60);
   cam.endHUD();
 }
 
@@ -80,7 +86,8 @@ PVector getFaceNormal(int face) {
   PVector vertexC = new PVector(v[faces[face][2]][0], v[faces[face][2]][1], v[faces[face][2]][2]);
 
   // VECTORS OF 2 NON-PARALLEL SIDES
-  PVector sideA = PVector.sub(vertexA, vertexB);
+  // NEGATIVE IF TRIANGLE IS FACING BACKWARDS (FRONT = RIGHT HAND RULE)
+  PVector sideA = PVector.sub(vertexB, vertexA);
   PVector sideB = PVector.sub(vertexB, vertexC);
 
   // TRIANGLE NORMAL => CROSS PRODUCT: VECTOR PERPENDICULAR TO 2 OF ITS SIDE (NON-PARALLEL)
@@ -102,16 +109,16 @@ float normalToLightIncidence(int face, PVector faceNormal) {
   float cX = (v[faces[face][0]][0] + v[faces[face][1]][0] + v[faces[face][2]][0]) / 3;
   float cY = (v[faces[face][0]][1] + v[faces[face][1]][1] + v[faces[face][2]][1])  / 3;
   float cZ = (v[faces[face][0]][2] + v[faces[face][1]][2] + v[faces[face][2]][2])  / 3;
-  
+
   // CREATE AND VIZ CENTROID
   PVector centroid = new PVector(cX, cY, cZ);
   pushMatrix();
-  fill(255,0,0);
-  translate(centroid.x, centroid.y,centroid.z);
+  fill(255, 0, 0);
+  translate(centroid.x, centroid.y, centroid.z);
   sphere(2);
-  stroke(255,200,0);
+  stroke(255, 200, 0);
   noFill();
-  line(0,0,0,faceNormal.x * 50,faceNormal.y * 50,faceNormal.z * 50);
+  line(0, 0, 0, faceNormal.x * 50, faceNormal.y * 50, faceNormal.z * 50);
   popMatrix();
 
   // LIGHT VECTOR FROM CENTROID
@@ -125,6 +132,6 @@ float normalToLightIncidence(int face, PVector faceNormal) {
   return incidence;
 }
 
-color shadeDiffuse(color c, float incidence){
+color shadeDiffuse(color c, float incidence) {
   return color((c >> 16 & 0xFF) * incidence, (c >> 8 & 0xFF) * incidence, (c & 0xFF) * incidence);
 }
