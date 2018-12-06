@@ -3,15 +3,23 @@ import peasy.PeasyCam;
 PeasyCam cam;
 Tools tools;
 
+/*
 float[][] v = {
-  {0, 0, -50}, {100, 0, 0}, {0, 100, 0}, {100, 100, 0}
-};
+ {0, 0, -50}, {100, 0, 0}, {0, 100, 0}, {100, 100, 0}
+ };
+ 
+ int[][] f = {
+ {0, 2, 1}, {1, 2, 3}
+ };
+ */
 
-int[][] faces = {
-  {0, 2, 1}, {1, 2, 3}
-};
+boolean drawNormals = false;
 
-color[] faceColors = {color(0, 255, 0), color(0, 255, 0)};
+float[][] v; // VERTICES 
+float[][] n; // NORMALS
+int[][] f; // FACES
+
+//color[] faceColors = {color(0, 255, 0), color(0, 255, 0)};
 
 color objectDiffuseColor = color(0, 255, 0);
 
@@ -22,9 +30,12 @@ void setup() {
   size(500, 500, P3D);
   stroke(255, 100, 0);
   fill(255, 0, 0);
+  sphereDetail(3);
 
   cam = new PeasyCam(this, 400);
   tools = new Tools();
+
+  constructSphere();
 }
 
 void draw() {
@@ -36,22 +47,26 @@ void draw() {
   tools.drawAxisGizmo();
 
   // FACES
-  float[] tempL = new float[2];
-  for (int i=0; i < faces.length; i++) {
+  //float[] tempL = new float[2];
+  for (int i=0; i < f.length; i++) {
 
     PVector n = getFaceNormal(i);
+    //println("---|| FINISHED: GETTING FACE NORMALS\n");
     float l = normalToLightIncidence(i, n);
-    tempL[i] = l; 
+    //println("---|| FINISHED: CALCULATING INCIDENCE\n");
+
+    //tempL[i] = l; 
 
 
-    color faceDiffuse = shadeDiffuse(faceColors[i], l);
-
+    color faceDiffuse = shadeDiffuse(objectDiffuseColor, l);
+  
     beginShape();
     fill(faceDiffuse);
+    noStroke();
 
     // FACES VERTICES
     for (int j=0; j < 3; j++) {
-      vertex(v[faces[i][j]][0], v[faces[i][j]][1], v[faces[i][j]][2] );
+      vertex(v[f[i][j]][0], v[f[i][j]][1], v[f[i][j]][2] );
     }
     endShape(CLOSE);
   }
@@ -71,8 +86,8 @@ void draw() {
   fill(0, 255, 127);
   //text("FACE 0 NORMAL: \t\t" + n, 10, 20);
   text("LIGHT POS: \t\t" + lightPos, 10, 20);
-  text("LIGHT INCIDENCE ON FACE 0: " + tempL[0], 10, 40);
-  text("LIGHT INCIDENCE ON FACE 1: " + tempL[1], 10, 60);
+  //text("LIGHT INCIDENCE ON FACE 0: " + tempL[0], 10, 40);
+  //text("LIGHT INCIDENCE ON FACE 1: " + tempL[1], 10, 60);
   //text("FACE LIGHT INCIDENCE: \t\t" + l, 10, 60);
   cam.endHUD();
 }
@@ -81,13 +96,14 @@ PVector getFaceNormal(int face) {
   PVector n = new PVector();
 
   // CONVERT POINTS TO VECTORS
-  PVector vertexA = new PVector(v[faces[face][0]][0], v[faces[face][0]][1], v[faces[face][0]][2]);
-  PVector vertexB = new PVector(v[faces[face][1]][0], v[faces[face][1]][1], v[faces[face][1]][2]);
-  PVector vertexC = new PVector(v[faces[face][2]][0], v[faces[face][2]][1], v[faces[face][2]][2]);
+  PVector vertexA = new PVector(v[f[face][0]][0], v[f[face][0]][1], v[f[face][0]][2]);
+  PVector vertexB = new PVector(v[f[face][1]][0], v[f[face][1]][1], v[f[face][1]][2]);
+  PVector vertexC = new PVector(v[f[face][2]][0], v[f[face][2]][1], v[f[face][2]][2]);
 
   // VECTORS OF 2 NON-PARALLEL SIDES
   // NEGATIVE IF TRIANGLE IS FACING BACKWARDS (FRONT = RIGHT HAND RULE)
-  PVector sideA = PVector.sub(vertexB, vertexA);
+  // SWAPPING THE PARAMETERS For sideA INVERTS THE NORMALS
+  PVector sideA = PVector.sub(vertexA, vertexB);
   PVector sideB = PVector.sub(vertexB, vertexC);
 
   // TRIANGLE NORMAL => CROSS PRODUCT: VECTOR PERPENDICULAR TO 2 OF ITS SIDE (NON-PARALLEL)
@@ -106,20 +122,23 @@ float normalToLightIncidence(int face, PVector faceNormal) {
 
   // CALCULATE LIGHT VECTOR FROM CENTROID OF FACE
   // CENTROID (BY VERTEX AVERAGE):
-  float cX = (v[faces[face][0]][0] + v[faces[face][1]][0] + v[faces[face][2]][0]) / 3;
-  float cY = (v[faces[face][0]][1] + v[faces[face][1]][1] + v[faces[face][2]][1])  / 3;
-  float cZ = (v[faces[face][0]][2] + v[faces[face][1]][2] + v[faces[face][2]][2])  / 3;
+  float cX = (v[f[face][0]][0] + v[f[face][1]][0] + v[f[face][2]][0]) / 3;
+  float cY = (v[f[face][0]][1] + v[f[face][1]][1] + v[f[face][2]][1])  / 3;
+  float cZ = (v[f[face][0]][2] + v[f[face][1]][2] + v[f[face][2]][2])  / 3;
 
   // CREATE AND VIZ CENTROID
   PVector centroid = new PVector(cX, cY, cZ);
-  pushMatrix();
-  fill(255, 0, 0);
-  translate(centroid.x, centroid.y, centroid.z);
-  sphere(2);
-  stroke(255, 200, 0);
-  noFill();
-  line(0, 0, 0, faceNormal.x * 50, faceNormal.y * 50, faceNormal.z * 50);
-  popMatrix();
+  if (drawNormals) {
+    int nMult = 20;
+    pushMatrix();
+    fill(255, 0, 0);
+    translate(centroid.x, centroid.y, centroid.z);
+    sphere(1);
+    stroke(0,255,255);
+    noFill();
+    line(0, 0, 0, faceNormal.x * nMult, faceNormal.y * nMult, faceNormal.z * nMult);
+    popMatrix();
+  }
 
   // LIGHT VECTOR FROM CENTROID
   PVector lightVector = PVector.sub(lightPos, centroid);
@@ -134,4 +153,99 @@ float normalToLightIncidence(int face, PVector faceNormal) {
 
 color shadeDiffuse(color c, float incidence) {
   return color((c >> 16 & 0xFF) * incidence, (c >> 8 & 0xFF) * incidence, (c & 0xFF) * incidence);
+}
+
+void constructSphere() {
+  // THE SPHERE IS GENERATED FACING TOWARDS THE FRONT (ON X/Y PLANE)
+  // BUT Y AND Z VALUES ARE SWAPPED AT THE END TO ALIGN AXIS ON Y.
+  // NOT FINISHED..!!! I THINK IT IS NOT THE BEST WAY TO CONSTRUCT IT,
+  // MIGHT BE BETTTER TO CALCULATE PER 4 VERTICES AT A TIME
+
+  int resolution = 20;
+  float anguloUnidad = TWO_PI / resolution;
+  float escala = 50;
+  float r = 1 * escala; // RADIO
+
+  v = new float[resolution * resolution][3];
+  n = new float[resolution * resolution][3];
+  //f = new int[((resolution - 1) * (resolution - 1)) * 2][3];
+  f = new int[((resolution * resolution)-2)*2][3];
+
+  int faceCount = 0;
+
+  for (int plano=0; plano < resolution; plano++) { // Sphere X/Y SLICE
+
+    float phi = (PI / resolution) * plano;
+    float z = r * cos(phi);
+
+    for (int vert=0; vert < resolution; vert++) {
+
+      float theta = anguloUnidad * vert;
+      float x = r * sin(phi) * cos(theta);
+      float y = r * sin(phi) * sin(theta);
+
+      // Vertex Position
+      PVector vertPos = new PVector(x, z, y); // SWAPPEAR Y <-> Z para iniciarla mirando hacia arriba (mas intuitivo)
+
+      // Vertex Normal as Euler Angles
+      //float angleY = -theta;
+      //float angleZ = -phi + HALF_PI;
+
+      PVector normal = vertPos.copy();
+      normal.normalize();
+
+      int id = vert + (plano * resolution);
+
+      v[id][0] = vertPos.x;
+      v[id][1] = vertPos.y;      
+      v[id][2] = vertPos.z;
+
+      n[id][0] = normal.x;
+      n[id][1] = normal.y;      
+      n[id][2] = normal.z;
+
+      // FACE/TRIANGLE ASSEMBLY
+      if (id >= (resolution * 2) + 1) { // START AT THE SECOND LOOP
+        if (id % resolution != 0) { // BYPASS ASSEMBLY FOR START OF LOOP (HANDLE AT THE else)
+          println("\nAtVert: " + id);
+
+          // TRIANGLE 1 OF 2 (FOR RECTANGLE)      
+          println("-|| FaceCount: " + faceCount);
+          f[faceCount][0] = id - 1; 
+          f[faceCount][1] = (id - 1) - resolution;
+          f[faceCount][2] = id - resolution;
+          faceCount++;
+
+          // TRIANGLE 2 OF 2
+          println("-|| FaceCount: " + faceCount);
+          f[faceCount][0] = id; 
+          f[faceCount][1] = id - 1;
+          f[faceCount][2] = id - resolution;
+          faceCount++;
+        } else {
+          // HANDLE TRIANGLES BETWEEN FIRST AND LAST VERTEX OF LOOP
+          // TRIANGLE 1 OF 2 (FOR RECTANGLE)      
+          println("-|| FaceCount: " + faceCount);
+          f[faceCount][0] = id - 1; 
+          f[faceCount][1] = (id - resolution) - 1;
+          f[faceCount][2] = id - (resolution * 2);
+          faceCount++;
+
+          println("-|| FaceCount: " + faceCount);
+          f[faceCount][0] = id - resolution; 
+          f[faceCount][1] = id - 1;
+          f[faceCount][2] = id - (resolution * 2);
+          faceCount++;
+        }
+      }
+    }
+  }
+
+  println("---|| FINISHED: CALCULATING SPHERE\n");
+}
+
+void keyPressed(){
+ if(key == 'n'){
+  drawNormals = !drawNormals; 
+ }
 }
