@@ -57,6 +57,10 @@ public class Tools {
   public  PVector lerpPVector(PVector a, PVector b, float amount){
     return new PVector(lerp(a.x, b.x, amount),lerp(a.y, b.y, amount),lerp(a.z, b.z, amount));
   }
+  
+  public PVector multiplyVectorByComponent(PVector a, PVector b) {
+  return new PVector(a.x * b.x, a.y * b.y, a.z * b.z);
+}
 
 
 

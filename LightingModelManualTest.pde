@@ -1,4 +1,4 @@
-import peasy.PeasyCam;
+import peasy.PeasyCam; //<>//
 
 PeasyCam cam;
 Tools tools;
@@ -35,7 +35,7 @@ void setup() {
   cam = new PeasyCam(this, 400);
   tools = new Tools();
 
-  constructSphere();
+  constructSphere(10);
 }
 
 void draw() {
@@ -49,6 +49,7 @@ void draw() {
   // FACES
   //float[] tempL = new float[2];
   for (int i=0; i < f.length; i++) {
+  //for (int i=0; i < 1; i++) {
 
     PVector n = getFaceNormal(i);
     //println("---|| FINISHED: GETTING FACE NORMALS\n");
@@ -57,9 +58,11 @@ void draw() {
 
     //tempL[i] = l; 
 
+    //println("-|| ObjectColor => \tR:" + red(objectDiffuseColor) + "\tG:" + green(objectDiffuseColor)  + "\tB:" + blue(objectDiffuseColor));
+    color faceDiffuse = shadeDiffuse(objectDiffuseColor, 1, lightColor, 1, l);
 
-    color faceDiffuse = shadeDiffuse(objectDiffuseColor, l);
-  
+
+
     beginShape();
     fill(faceDiffuse);
     noStroke();
@@ -90,6 +93,9 @@ void draw() {
   //text("LIGHT INCIDENCE ON FACE 1: " + tempL[1], 10, 60);
   //text("FACE LIGHT INCIDENCE: \t\t" + l, 10, 60);
   cam.endHUD();
+  
+  //noLoop();
+  //println("noLoop()ing");
 }
 
 PVector getFaceNormal(int face) {
@@ -134,7 +140,7 @@ float normalToLightIncidence(int face, PVector faceNormal) {
     fill(255, 0, 0);
     translate(centroid.x, centroid.y, centroid.z);
     sphere(1);
-    stroke(0,255,255);
+    stroke(0, 255, 255);
     noFill();
     line(0, 0, 0, faceNormal.x * nMult, faceNormal.y * nMult, faceNormal.z * nMult);
     popMatrix();
@@ -151,17 +157,50 @@ float normalToLightIncidence(int face, PVector faceNormal) {
   return incidence;
 }
 
-color shadeDiffuse(color c, float incidence) {
-  return color((c >> 16 & 0xFF) * incidence, (c >> 8 & 0xFF) * incidence, (c & 0xFF) * incidence);
+color shadeDiffuse(color surfaceColor, float rho, color lightColor, float lightMultiplier, float incidence) {
+  // ALBEDO/DIFFUSE ALGORITHM = R*L*(N dot L) 
+  // R = rho = Surface Absorbtion Rate (reflectedLight /incidentLight). Here, a constant.
+  // L = lightColor = Incident Light Energy = color * multiplier (lightMultiplier)
+  // (N dot L) = incidence = (cosine law) 
+
+  // FIRST, NORMALIZE INCOMING rgb255 COLORS. EASIER TO WORK WITH.
+  PVector surfaceColorNorm = normalizeColor(surfaceColor);
+  //println("-|| SurfaceColorNorm: " + surfaceColorNorm);
+  PVector lightColorNorm = normalizeColor(lightColor);
+  //println("-|| lightColorNorm: " + lightColorNorm);
+
+  // MULTIPLY ELEMENTS OF ALGORYTHM
+  PVector lightEnergy = PVector.mult(lightColorNorm, lightMultiplier); // L
+  PVector lightAbsorbtion = PVector.mult(lightEnergy, rho); // L * R
+  PVector incidenceOnSurface = PVector.mult(lightAbsorbtion, incidence); // L * R * (N dot L)
+
+  // FINALLY, MULTIPLY by surfaceColor 
+  PVector finalColorNorm = multiplyVectorByComponent(surfaceColorNorm, incidenceOnSurface);
+  println("-|| Incidence =>\t\t" + incidenceOnSurface);
+  println("-|| SurfaceColorNorm =>\t" + surfaceColorNorm);
+  println("-|| finalColorNorm =>\t" + finalColorNorm);
+  println("---------------------------------------------------\n");
+
+
+  return color(finalColorNorm.x * 255, finalColorNorm.y * 255, finalColorNorm.z * 255);
 }
 
-void constructSphere() {
+PVector normalizeColor (color c) {
+  return new PVector((c >> 16 & 0xFF) / 255.0, (c >> 8 & 0xFF) / 255.0, (c & 0xFF) / 255.0);
+}
+
+PVector multiplyVectorByComponent(PVector a, PVector b) {
+  return new PVector(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+
+
+void constructSphere(int resolution) {
   // THE SPHERE IS GENERATED FACING TOWARDS THE FRONT (ON X/Y PLANE)
   // BUT Y AND Z VALUES ARE SWAPPED AT THE END TO ALIGN AXIS ON Y.
   // NOT FINISHED..!!! I THINK IT IS NOT THE BEST WAY TO CONSTRUCT IT,
   // MIGHT BE BETTTER TO CALCULATE PER 4 VERTICES AT A TIME
 
-  int resolution = 20;
+  //int resolution = 20;
   float anguloUnidad = TWO_PI / resolution;
   float escala = 50;
   float r = 1 * escala; // RADIO
@@ -207,17 +246,17 @@ void constructSphere() {
       // FACE/TRIANGLE ASSEMBLY
       if (id >= (resolution * 2) + 1) { // START AT THE SECOND LOOP
         if (id % resolution != 0) { // BYPASS ASSEMBLY FOR START OF LOOP (HANDLE AT THE else)
-          println("\nAtVert: " + id);
+          //println("\nAtVert: " + id);
 
           // TRIANGLE 1 OF 2 (FOR RECTANGLE)      
-          println("-|| FaceCount: " + faceCount);
+          //println("-|| FaceCount: " + faceCount);
           f[faceCount][0] = id - 1; 
           f[faceCount][1] = (id - 1) - resolution;
           f[faceCount][2] = id - resolution;
           faceCount++;
 
           // TRIANGLE 2 OF 2
-          println("-|| FaceCount: " + faceCount);
+          //println("-|| FaceCount: " + faceCount);
           f[faceCount][0] = id; 
           f[faceCount][1] = id - 1;
           f[faceCount][2] = id - resolution;
@@ -225,13 +264,13 @@ void constructSphere() {
         } else {
           // HANDLE TRIANGLES BETWEEN FIRST AND LAST VERTEX OF LOOP
           // TRIANGLE 1 OF 2 (FOR RECTANGLE)      
-          println("-|| FaceCount: " + faceCount);
+          //println("-|| FaceCount: " + faceCount);
           f[faceCount][0] = id - 1; 
           f[faceCount][1] = (id - resolution) - 1;
           f[faceCount][2] = id - (resolution * 2);
           faceCount++;
 
-          println("-|| FaceCount: " + faceCount);
+          //println("-|| FaceCount: " + faceCount);
           f[faceCount][0] = id - resolution; 
           f[faceCount][1] = id - 1;
           f[faceCount][2] = id - (resolution * 2);
@@ -244,8 +283,8 @@ void constructSphere() {
   println("---|| FINISHED: CALCULATING SPHERE\n");
 }
 
-void keyPressed(){
- if(key == 'n'){
-  drawNormals = !drawNormals; 
- }
+void keyPressed() {
+  if (key == 'n') {
+    drawNormals = !drawNormals;
+  }
 }
