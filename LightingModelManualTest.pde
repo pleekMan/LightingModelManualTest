@@ -14,21 +14,29 @@ float[][] v = {
  */
 
 boolean drawNormals = false;
+boolean controlAmbient = true;
 
 // OBJECT
 float[][] v; // VERTICES 
 float[][] n; // NORMALS
 int[][] f; // FACES
 
+// SCENE PROPERTIES
+//PVector sceneAmbientColor = new PVector(0, 0, 1);
+
 // OBJECT PROPERTIES
-PVector objectDiffuseColor = new PVector(1, 1, 1);
+PVector objectAmbientColor = new PVector(0,0.2,0.5);
+float objectAmbientConstant = 1;
+PVector objectDiffuseColor = new PVector(0, 0.8, 0);
 PVector objectSpecularColor = new PVector(1, 1, 1);
 float objectSpecularConstant = 0.5; // 
 float objectSpecularWidth = 8;
 
+
+
 // LIGHTS 
 PVector lightColor = new PVector(1, 1, 1);
-PVector lightColor2 = new PVector(1, 1, 0);
+PVector lightColor2 = new PVector(1, 0, 0);
 
 PVector lightPos = new PVector(-100, 0, 100);
 PVector lightPos2 = new PVector(-100, 0, 100);
@@ -54,28 +62,29 @@ void setup() {
   lightsColor[0] = lightColor;
   lightsColor[1] = lightColor2;
 
-  constructSphere(30);
+  constructSphere(50);
 }
 
 void draw() {
   background(0);
   stroke(255, 100, 0);
 
-  lightPos.x = 100 * (cos(frameCount * 0.0001)*1.8); // ELIPSOIDAL
-  lightPos.z = 100 * sin(frameCount * 0.0001);
+  lightPos.x = 100 * (cos(frameCount * 0.005)*1.8); // ELIPSOIDAL
+  lightPos.z = 100 * sin(frameCount * 0.005);
 
-  lightPos2.x = 100 * (sin(frameCount * 0.0001)*1.8); // ELIPSOIDAL
-  lightPos2.z = 100 * cos(frameCount * 0.0001);
+  lightPos2.x = 100 * (sin(frameCount * 0.005)*1.8); // ELIPSOIDAL
+  lightPos2.z = 100 * cos(frameCount * 0.005);
 
   float[] camPos = cam.getPosition();
   PVector camPosVector = new PVector(camPos[0], camPos[1], camPos[2]);
 
   //objectSpecularWidth = floor(((float)mouseX / width) * 10) + 1;
   //objectSpecularConstant = (float)mouseY / height;
+  if(controlAmbient)objectAmbientConstant = (float)mouseY / height;
 
   tools.drawAxisGizmo(200);
 
-  // FACES (only 1 object)
+  // FOR EACH FACE (only 1 object)
   //float[] tempL = new float[2];
   for (int i=0; i < f.length; i++) {
     //for (int i=0; i < 1; i++) {
@@ -102,8 +111,10 @@ void draw() {
 
     PVector finalDiffuseColor = PVector.add(diffuseForLight[0], diffuseForLight[1]);
     PVector finalSpecularColor = PVector.add(specularForLight[0], specularForLight[1]);
+    PVector finalAmbientColor = shadeAmbient(objectAmbientConstant, objectAmbientColor);
 
-    PVector finalFaceColor = PVector.add(finalDiffuseColor,finalSpecularColor);
+    PVector diffusePlusSpecular = PVector.add(finalDiffuseColor, finalSpecularColor);
+    PVector finalFaceColor = PVector.add(finalAmbientColor, diffusePlusSpecular);
 
     beginShape();
     fill(vectorToColor(finalFaceColor));
@@ -136,14 +147,14 @@ void draw() {
   popMatrix();
 
   //-------------
-  cam.beginHUD();
-  fill(0, 255, 127);
+  //cam.beginHUD();
+  //fill(0, 255, 127);
   //text("FACE 0 NORMAL: \t\t" + n, 10, 20);
-  text("LIGHT POS: \t\t" + lightPos, 10, 20);
+  //text("LIGHT POS: \t\t" + lightPos, 10, 20);
   //text("LIGHT INCIDENCE ON FACE 0: " + tempL[0], 10, 40);
   //text("LIGHT INCIDENCE ON FACE 1: " + tempL[1], 10, 60);
   //text("FACE LIGHT INCIDENCE: \t\t" + l, 10, 60);
-  cam.endHUD();
+  //cam.endHUD();
 
   //noLoop();
   //println("noLoop()ing");
@@ -215,6 +226,15 @@ float normalToLightIncidence(int face, PVector faceNormal, int light) {
   incidence = faceNormal.dot(lightVector);
 
   return incidence;
+}
+
+PVector shadeAmbient(float objectAmbientConst, PVector sceneAmbientLighting) {
+  //AMBIENT COLOR MODEL
+  // O*S
+  // O = Object Ambient Reflection Constant
+  // S = Scene Ambient Lighting (sometimes conputed as the sum of all lights sources)
+
+  return PVector.mult(sceneAmbientLighting, objectAmbientConst);
 }
 
 PVector shadeDiffuse(PVector objectColor, float rho, PVector lightColor, float lightMultiplier, float incidence) {
@@ -395,5 +415,8 @@ void constructSphere(int resolution) {
 void keyPressed() {
   if (key == 'n') {
     drawNormals = !drawNormals;
+  }
+    if (key == 'a') {
+    controlAmbient = !controlAmbient;
   }
 }
