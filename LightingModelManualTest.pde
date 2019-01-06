@@ -188,7 +188,7 @@ float normalToLightIncidence(int face, PVector faceNormal, int light) {
   // CREATE AND VIZ CENTROID
   PVector centroid = getFaceCentroid(face);
   if (drawNormals) {
-    int nMult = 20;
+    int nMult = 10;
     pushMatrix();
     fill(255, 0, 0);
     translate(centroid.x, centroid.y, centroid.z);
@@ -223,12 +223,15 @@ PVector shadeDiffuse(PVector objectColor, float rho, PVector lightColor, float l
   // ALBEDO/DIFFUSE ALGORITHM = R*L*(N dot L) 
   // R = rho = Surface Absorbtion Rate (reflectedLight /incidentLight). Here, a constant.
   // L = lightColor = Incident Light Energy = color * multiplier (lightMultiplier)
-  // (N dot L) = incidence = (cosine law) 
+  // (N dot L) = incidence = (cosine law)
+  
+  //PLAY WITH THE INCIDENCE
+  float playIncidence = sin(incidence * (TWO_PI * 10));
 
   // MULTIPLY ELEMENTS OF ALGORYTHM
   PVector lightEnergy = PVector.mult(lightColor, lightMultiplier); // L
   PVector lightAbsorbtion = PVector.mult(lightEnergy, rho); // L * R
-  PVector incidenceOnSurface = PVector.mult(lightAbsorbtion, incidence); // L * R * (N dot L)
+  PVector incidenceOnSurface = PVector.mult(lightAbsorbtion, playIncidence); // L * R * (N dot L)
 
   // FINALLY, MULTIPLY by surfaceColor 
   PVector finalColorNorm = multiplyVectorByComponent(objectColor, incidenceOnSurface);
