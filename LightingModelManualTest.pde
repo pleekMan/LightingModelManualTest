@@ -20,22 +20,25 @@ float[][] v; // VERTICES
 float[][] n; // NORMALS
 int[][] f; // FACES
 
-//color[] faceColors = {color(0, 255, 0), color(0, 255, 0)};
+// OBJECT PROPERTIES
+PVector objectDiffuseColor = new PVector(1, 1, 1);
+PVector objectSpecularColor = new PVector(1, 1, 1);
+float objectSpecularConstant = 0.5; // 
+float objectSpecularWidth = 8;
 
-color objectDiffuseColor = color(255, 255, 255);
-  
 // LIGHTS 
-color lightColor = color(255, 0, 0);
-color lightColor2 = color(0, 0, 255);
+PVector lightColor = new PVector(1, 1, 1);
+PVector lightColor2 = new PVector(1, 1, 0);
 
 PVector lightPos = new PVector(-100, 0, 100);
 PVector lightPos2 = new PVector(-100, 0, 100);
 
+
 PVector[] lightsPos;
-color[] lightsColor;
+PVector[] lightsColor;
 
 void setup() {
-  size(500, 500, P3D);
+  size(800, 800, P3D);
   stroke(255, 100, 0);
   fill(255, 0, 0);
   sphereDetail(3);
@@ -44,7 +47,7 @@ void setup() {
   tools = new Tools();
 
   lightsPos = new PVector[2];
-  lightsColor = new color[lightsPos.length];
+  lightsColor = new PVector[lightsPos.length];
 
   lightsPos[0] = lightPos;
   lightsPos[1] = lightPos2;
@@ -58,12 +61,17 @@ void draw() {
   background(0);
   stroke(255, 100, 0);
 
-  lightPos.x = 100 * (cos(frameCount * 0.01)*1.8); // ELIPSOIDAL
-  lightPos.z = 100 * sin(frameCount * 0.01);
+  lightPos.x = 100 * (cos(frameCount * 0.0001)*1.8); // ELIPSOIDAL
+  lightPos.z = 100 * sin(frameCount * 0.0001);
 
-  lightPos2.x = 100 * (sin(frameCount * 0.01)*1.8); // ELIPSOIDAL
-  lightPos2.z = 100 * cos(frameCount * 0.01);
+  lightPos2.x = 100 * (sin(frameCount * 0.0001)*1.8); // ELIPSOIDAL
+  lightPos2.z = 100 * cos(frameCount * 0.0001);
 
+  float[] camPos = cam.getPosition();
+  PVector camPosVector = new PVector(camPos[0], camPos[1], camPos[2]);
+
+  //objectSpecularWidth = floor(((float)mouseX / width) * 10) + 1;
+  //objectSpecularConstant = (float)mouseY / height;
 
   tools.drawAxisGizmo(200);
 
@@ -73,29 +81,32 @@ void draw() {
     //for (int i=0; i < 1; i++) {
 
     PVector n = getFaceNormal(i);
-    //println("---|| FINISHED: GETTING FACE NORMALS\n");
-    
+
     // FOR EACH LIGHT...
-    color[] colorForLight = new color[2];
+    PVector[] diffuseForLight = new PVector[2];
+    PVector[] specularForLight = new PVector[2];
+
     for (int j=0; j < lightsPos.length; j++) {
-      
+
+      // DIFFUSE
       float l = normalToLightIncidence(i, n, j); // face, faceNormal, light
-      //println("---|| FINISHED: CALCULATING INCIDENCE\n");
-
       //tempL[i] = l; 
+      PVector faceDiffuse = shadeDiffuse(objectDiffuseColor, 1, lightsColor[j], 1, l);
+      diffuseForLight[j]  = faceDiffuse;
 
-      //println("-|| ObjectColor => \tR:" + red(objectDiffuseColor) + "\tG:" + green(objectDiffuseColor)  + "\tB:" + blue(objectDiffuseColor));
-      color faceDiffuse = shadeDiffuse(objectDiffuseColor, 1, lightsColor[j], 1, l);
-      colorForLight[j]  = faceDiffuse;
+      // SPECULAR
+      PVector halfAngle = viewerToLightHalfAngle(i, camPosVector, lightsPos[j]);
+      PVector faceSpecular = shadeSpecular(objectSpecularConstant, n, halfAngle, objectSpecularWidth, lightsColor[j], objectSpecularColor);
+      specularForLight[j] = faceSpecular;
     }
-    
-    //color finalColor = lerpColor(colorForLight[0], colorForLight[1],0.5);
-    //color finalColor = mix(colorForLight[0], colorForLight[1],0.5); // COMO EL lerpColor. No suma las luces,  sino que las balancea
-    color finalColor = mixSumado(colorForLight[0], colorForLight[1]); // sumar y clampear colores. Seria lo correcto para no perder intensidad luminica general.
 
+    PVector finalDiffuseColor = PVector.add(diffuseForLight[0], diffuseForLight[1]);
+    PVector finalSpecularColor = PVector.add(specularForLight[0], specularForLight[1]);
+
+    PVector finalFaceColor = PVector.add(finalDiffuseColor,finalSpecularColor);
 
     beginShape();
-    fill(finalColor);
+    fill(vectorToColor(finalFaceColor));
     noStroke();
 
     // FACES VERTICES
@@ -109,7 +120,7 @@ void draw() {
 
   // LIGHT
   noStroke();
-  fill(lightColor);
+  fill(vectorToColor(lightColor));
   pushMatrix();
   translate(lightPos.x, lightPos.y, lightPos.z);
   sphere(10);
@@ -117,9 +128,10 @@ void draw() {
 
   // LIGHT 2
   noStroke();
-  fill(lightColor2);
+  fill(vectorToColor(lightColor2));
   pushMatrix();
   translate(lightPos2.x, lightPos2.y, lightPos2.z);
+  scale(0.5);
   sphere(10);
   popMatrix();
 
@@ -161,17 +173,27 @@ PVector getFaceNormal(int face) {
   return n;
 }
 
+PVector getFaceCentroid(int face) {
+  // FACE POSITION IN WORLD SPACE
+  // CENTROID (BY VERTEX AVERAGE):
+  PVector faceCentroid = new PVector();
+  faceCentroid.x = (v[f[face][0]][0] + v[f[face][1]][0] + v[f[face][2]][0]) / 3;
+  faceCentroid.y = (v[f[face][0]][1] + v[f[face][1]][1] + v[f[face][2]][1]) / 3;
+  faceCentroid.z = (v[f[face][0]][2] + v[f[face][1]][2] + v[f[face][2]][2]) / 3;
+  return faceCentroid;
+}
+
 float normalToLightIncidence(int face, PVector faceNormal, int light) {
   float incidence = 0;
 
   // CALCULATE LIGHT VECTOR FROM CENTROID OF FACE
   // CENTROID (BY VERTEX AVERAGE):
-  float cX = (v[f[face][0]][0] + v[f[face][1]][0] + v[f[face][2]][0]) / 3;
-  float cY = (v[f[face][0]][1] + v[f[face][1]][1] + v[f[face][2]][1])  / 3;
-  float cZ = (v[f[face][0]][2] + v[f[face][1]][2] + v[f[face][2]][2])  / 3;
+  //float cX = (v[f[face][0]][0] + v[f[face][1]][0] + v[f[face][2]][0]) / 3;
+  //float cY = (v[f[face][0]][1] + v[f[face][1]][1] + v[f[face][2]][1])  / 3;
+  //float cZ = (v[f[face][0]][2] + v[f[face][1]][2] + v[f[face][2]][2])  / 3;
 
   // CREATE AND VIZ CENTROID
-  PVector centroid = new PVector(cX, cY, cZ);
+  PVector centroid = getFaceCentroid(face);
   if (drawNormals) {
     int nMult = 20;
     pushMatrix();
@@ -195,25 +217,19 @@ float normalToLightIncidence(int face, PVector faceNormal, int light) {
   return incidence;
 }
 
-color shadeDiffuse(color surfaceColor, float rho, color lightColor, float lightMultiplier, float incidence) {
+PVector shadeDiffuse(PVector objectColor, float rho, PVector lightColor, float lightMultiplier, float incidence) {
   // ALBEDO/DIFFUSE ALGORITHM = R*L*(N dot L) 
   // R = rho = Surface Absorbtion Rate (reflectedLight /incidentLight). Here, a constant.
   // L = lightColor = Incident Light Energy = color * multiplier (lightMultiplier)
   // (N dot L) = incidence = (cosine law) 
 
-  // FIRST, NORMALIZE INCOMING rgb255 COLORS. EASIER TO WORK WITH.
-  PVector surfaceColorNorm = normalizeColor(surfaceColor);
-  //println("-|| SurfaceColorNorm: " + surfaceColorNorm);
-  PVector lightColorNorm = normalizeColor(lightColor);
-  //println("-|| lightColorNorm: " + lightColorNorm);
-
   // MULTIPLY ELEMENTS OF ALGORYTHM
-  PVector lightEnergy = PVector.mult(lightColorNorm, lightMultiplier); // L
+  PVector lightEnergy = PVector.mult(lightColor, lightMultiplier); // L
   PVector lightAbsorbtion = PVector.mult(lightEnergy, rho); // L * R
   PVector incidenceOnSurface = PVector.mult(lightAbsorbtion, incidence); // L * R * (N dot L)
 
   // FINALLY, MULTIPLY by surfaceColor 
-  PVector finalColorNorm = multiplyVectorByComponent(surfaceColorNorm, incidenceOnSurface);
+  PVector finalColorNorm = multiplyVectorByComponent(objectColor, incidenceOnSurface);
   //PVector finalColorNorm = PVector.add(surfaceColorNorm,incidenceOnSurface);
   //println("-|| Incidence =>\t\t" + incidenceOnSurface);
   //println("-|| SurfaceColorNorm =>\t" + surfaceColorNorm);
@@ -221,33 +237,69 @@ color shadeDiffuse(color surfaceColor, float rho, color lightColor, float lightM
   //println("---------------------------------------------------\n");
 
 
-  return color(finalColorNorm.x * 255, finalColorNorm.y * 255, finalColorNorm.z * 255);
+  return finalColorNorm;
 }
 
-PVector normalizeColor (color c) {
-  return new PVector((c >> 16 & 0xFF) / 255.0, (c >> 8 & 0xFF) / 255.0, (c & 0xFF) / 255.0);
+PVector shadeSpecular(float specConstant, PVector faceNormal, PVector halfAngle, float specularWidth, PVector lightColor, PVector objectSpecColor) {
+  // BLINN-PHONG REFLECTION MODEL
+  // K * (MAX(0, N dot H)^S) * L * M
+  // K = Specular Constant
+  // N = Face Normal
+  // H = Viewer <=> Light Half-Angle
+  // S = Specular Width (exponential falloff)
+  // L = Light Specular Color
+  // M = Object Specular Color
+
+  float normalToHalfAngleIncidence = max(faceNormal.normalize().dot(halfAngle), 0);
+
+  float withSpecConstant = pow(specConstant * normalToHalfAngleIncidence, specularWidth);
+  PVector lightWithObjectSpecColor = multiplyVectorByComponent(lightColor, objectSpecColor);
+  PVector finalSpecular = multiplyVectorByComponent(new PVector(withSpecConstant, withSpecConstant, withSpecConstant), lightWithObjectSpecColor);
+
+  return finalSpecular;
 }
+
+PVector viewerToLightHalfAngle(int face, PVector viewerPos, PVector lightPos) {
+  // FOR SPECULAR REFLECTION
+
+  PVector faceCentroid = getFaceCentroid(face);
+  PVector faceToViewer = PVector.sub(viewerPos, faceCentroid);
+  PVector faceToLight = PVector.sub(lightPos, faceCentroid);
+
+  PVector halfAngle = faceToViewer.normalize().add(faceToLight.normalize());
+
+  return halfAngle;
+}
+
 
 PVector multiplyVectorByComponent(PVector a, PVector b) {
   return new PVector(a.x * b.x, a.y * b.y, a.z * b.z);
 }
 
-color mix(color a, color b, float pct){
-    
+color mixLerp(color a, color b, float pct) {
+
   float r = (red(a) * (1-pct)) + (red(b) * pct);
   float g = (green(a) * (1-pct)) + (green(b) * pct);
   float bl = (blue(a) * (1-pct)) + (blue(b) * pct);
-  
-  return color(r,g,bl);
+
+  return color(r, g, bl);
 }
 
-color mixSumado(color a, color b){
-    
-  float r = constrain((a >> 16 & 0xFF) + (b >> 16 & 0xFF),0,255);
-  float g = constrain((a >> 8 & 0xFF) + (b >> 8 & 0xFF),0,255);
-  float bl = constrain((a & 0xFF) + (b & 0xFF),0,255);
-  
-  return color(r,g,bl);
+PVector mixConstrained(PVector a, PVector b) {
+
+  float r = constrain(a.x + b.x, 0, 1);
+  float g = constrain(a.y + b.y, 0, 1);
+  float bl = constrain(a.z + b.z, 0, 1);
+
+  return new PVector(r, g, bl);
+}
+
+color vectorToColor(PVector v) {
+  return color(v.x * 255, v.y * 255, v.z * 255);
+}
+
+PVector colorToVector(color c) {
+  return new PVector((c >> 16 & 0xFF) / 255.0, (c >> 8 & 0xFF) / 255.0, (c & 0xFF) / 255.0);
 }
 
 
