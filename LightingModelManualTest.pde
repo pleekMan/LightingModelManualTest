@@ -3,15 +3,6 @@ import peasy.PeasyCam; //<>//
 PeasyCam cam;
 Tools tools;
 
-/*
-float[][] v = {
- {0, 0, -50}, {100, 0, 0}, {0, 100, 0}, {100, 100, 0}
- };
- 
- int[][] f = {
- {0, 2, 1}, {1, 2, 3}
- };
- */
 
 boolean drawNormals = false;
 boolean controlAmbient = true;
@@ -25,13 +16,12 @@ int[][] f; // FACES
 //PVector sceneAmbientColor = new PVector(0, 0, 1);
 
 // OBJECT PROPERTIES
-PVector objectAmbientColor = new PVector(0,0.2,0.5);
+PVector objectAmbientColor = new PVector(0, 0.2, 0.5);
 float objectAmbientConstant = 1;
 PVector objectDiffuseColor = new PVector(0, 0.8, 0);
 PVector objectSpecularColor = new PVector(1, 1, 1);
 float objectSpecularConstant = 0.5; // 
 float objectSpecularWidth = 8;
-
 
 
 // LIGHTS 
@@ -80,12 +70,11 @@ void draw() {
 
   //objectSpecularWidth = floor(((float)mouseX / width) * 10) + 1;
   //objectSpecularConstant = (float)mouseY / height;
-  if(controlAmbient)objectAmbientConstant = (float)mouseY / height;
+  if (controlAmbient)objectAmbientConstant = (float)mouseY / height;
 
   tools.drawAxisGizmo(200);
 
   // FOR EACH FACE (only 1 object)
-  //float[] tempL = new float[2];
   for (int i=0; i < f.length; i++) {
     //for (int i=0; i < 1; i++) {
 
@@ -99,7 +88,6 @@ void draw() {
 
       // DIFFUSE
       float l = normalToLightIncidence(i, n, j); // face, faceNormal, light
-      //tempL[i] = l; 
       PVector faceDiffuse = shadeDiffuse(objectDiffuseColor, 1, lightsColor[j], 1, l);
       diffuseForLight[j]  = faceDiffuse;
 
@@ -197,12 +185,6 @@ PVector getFaceCentroid(int face) {
 float normalToLightIncidence(int face, PVector faceNormal, int light) {
   float incidence = 0;
 
-  // CALCULATE LIGHT VECTOR FROM CENTROID OF FACE
-  // CENTROID (BY VERTEX AVERAGE):
-  //float cX = (v[f[face][0]][0] + v[f[face][1]][0] + v[f[face][2]][0]) / 3;
-  //float cY = (v[f[face][0]][1] + v[f[face][1]][1] + v[f[face][2]][1])  / 3;
-  //float cZ = (v[f[face][0]][2] + v[f[face][1]][2] + v[f[face][2]][2])  / 3;
-
   // CREATE AND VIZ CENTROID
   PVector centroid = getFaceCentroid(face);
   if (drawNormals) {
@@ -228,13 +210,13 @@ float normalToLightIncidence(int face, PVector faceNormal, int light) {
   return incidence;
 }
 
-PVector shadeAmbient(float objectAmbientConst, PVector sceneAmbientLighting) {
+PVector shadeAmbient(float objectAmbientConst, PVector objectAmbientColor) {
   //AMBIENT COLOR MODEL
-  // O*S
+  // Ambient = O*S
   // O = Object Ambient Reflection Constant
-  // S = Scene Ambient Lighting (sometimes conputed as the sum of all lights sources)
+  // S = Object Ambient Color (or Scene Ambient Lighting (sometimes conputed as the sum of all lights sources))
 
-  return PVector.mult(sceneAmbientLighting, objectAmbientConst);
+  return PVector.mult(objectAmbientColor, objectAmbientConst);
 }
 
 PVector shadeDiffuse(PVector objectColor, float rho, PVector lightColor, float lightMultiplier, float incidence) {
@@ -250,23 +232,17 @@ PVector shadeDiffuse(PVector objectColor, float rho, PVector lightColor, float l
 
   // FINALLY, MULTIPLY by surfaceColor 
   PVector finalColorNorm = multiplyVectorByComponent(objectColor, incidenceOnSurface);
-  //PVector finalColorNorm = PVector.add(surfaceColorNorm,incidenceOnSurface);
-  //println("-|| Incidence =>\t\t" + incidenceOnSurface);
-  //println("-|| SurfaceColorNorm =>\t" + surfaceColorNorm);
-  //println("-|| finalColorNorm =>\t" + finalColorNorm);
-  //println("---------------------------------------------------\n");
-
 
   return finalColorNorm;
 }
 
 PVector shadeSpecular(float specConstant, PVector faceNormal, PVector halfAngle, float specularWidth, PVector lightColor, PVector objectSpecColor) {
   // BLINN-PHONG REFLECTION MODEL
-  // K * (MAX(0, N dot H)^S) * L * M
+  // Specular = K * (MAX(0, N dot H)^S) * L * M
   // K = Specular Constant
   // N = Face Normal
   // H = Viewer <=> Light Half-Angle
-  // S = Specular Width (exponential falloff)
+  // S = Specular Width Exponential falloff
   // L = Light Specular Color
   // M = Object Specular Color
 
@@ -416,7 +392,7 @@ void keyPressed() {
   if (key == 'n') {
     drawNormals = !drawNormals;
   }
-    if (key == 'a') {
+  if (key == 'a') {
     controlAmbient = !controlAmbient;
   }
 }
